@@ -40,7 +40,7 @@ def ILP(filename):
         else:
             dct[i[0]-1].append(i[1]-1)
 
-    solver = pywraplp.Solver.CreateSolver('CBC')
+    solver = pywraplp.Solver.CreateSolver('SCIP')
     INF = solver.infinity()
     large = max(sum(d) + max(d)+max(starts), n + 1)
     # X = m*n
@@ -78,10 +78,9 @@ def ILP(filename):
             for k in range(j+1, n):
                 if j != k:
                     t = solver.IntVar(0, 1, 'T[{}, {}, {}]'.format(i, j, k))
-                    solver.Add((1 - X[i][j])*large + (1 - X[i][k])*large + times[j] + (1-t)*large >= times[k] + d[k])
-                    solver.Add((1 - X[i][j])*large + (1 - X[i][k])*large + times[k] + t*large >= times[j] + d[j])
+                    solver.Add((1 - X[i][j])*large + (1 - X[i][k])*large + times[j] + t*large >= times[k] + d[k])
+                    solver.Add((1 - X[i][j])*large + (1 - X[i][k])*large + times[k] + (1-t)*large >= times[j] + d[j])
             solver.Add((1-X[i][j])*large + times[j] >= starts[i])
-
 
     costs = [solver.IntVar(0, INF, 'cost[{}]'.format(i)) for i in range(m)]
     for i in range(m):
