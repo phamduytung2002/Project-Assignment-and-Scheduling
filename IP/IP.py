@@ -15,11 +15,11 @@ def input(filename):
         K = int(f.readline())
         key = 1
         dat = []
-        cost_list = [[999 for _ in range(m)] for _ in range(n)]
+        cost_list = [[0 for _ in range(m)] for _ in range(n)]
         for i in range(K):
             read_line = list(map(int, f.readline().split()))
             if read_line [0] == key and i < (K-1):
-                dat.append(read_line[1])
+                dat.append(read_line[1]-1)
             elif (key != read_line[0]) or (i == (K-1)):
                 if key == read_line[0]:
                     dat.append(read_line[1]-1)
@@ -27,8 +27,7 @@ def input(filename):
                 dat =[]
                 key += 1
                 dat.append(read_line[1]-1)
-            cost_list[read_line[0]-1][read_line[1]-1] = read_line[2]
-            
+            cost_list[read_line[0]-1][read_line[1]-1] = read_line[2] 
     return n, m, worker_list, d, K, cost_list, starts, pres
 
 #Integer programming model
@@ -44,14 +43,16 @@ def ILP(filename):
     solver = pywraplp.Solver.CreateSolver('CBC')
     INF = solver.infinity()
     large = max(sum(d) + max(d)+max(starts), n + 1)
-
+    # X = m*n
     X = [[None]*n for i in range(m)]
-
+    
+    # X[i][j] team i vs task j
     for i in range(m):
         for j in range(n):
             X[i][j] = solver.IntVar(0, 1, 'X[{}, {}]'.format(i, j))
 
     for i in range(n):
+        # Sua lai dieu kien
         solver.Add(sum([X[j][i] for j in range(m)]) == 1)
 
     for i in range(n):
@@ -88,8 +89,8 @@ def ILP(filename):
         for j in range(n):
             sum_ += X[i][j] * c[j][i]
         solver.Add(costs[i] == sum_)
-    number_task = solver.IntVar(0, n, 'n_t')
-    solver.Add(number_task <= n)
+    number_task = solver.IntVar(0, n-1, 'n_t')
+    solver.Add(number_task <= n-1)
     Z = solver.IntVar(0, INF, 'z')
     max_cost = solver.IntVar(0, INF, 'maxcost')
     for i in range(n):
@@ -109,8 +110,8 @@ def ILP(filename):
             if status == 0:
                 
                 print('Optimal result: ')
-                print('   Maximum task:', number_task.solution_value())
-                print('   Maximum cost:', max_cost.solution_value())
+                print('   Maximum task:', number_task.solution_value()+1)
+                print('   Minimum cost:', max_cost.solution_value())
                 print('   Minimum time:', Z.solution_value())
                 for i in range(n):
                     print('Time for part {}:'.format(i+1), times[i].solution_value())
