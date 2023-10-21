@@ -15,7 +15,7 @@ def input(filename):
         K = int(f.readline())
         key = 1
         dat = []
-        cost_list = [[0 for _ in range(m)] for _ in range(n)]
+        cost_list = [[999 for _ in range(m)] for _ in range(n)]
         for i in range(K):
             read_line = list(map(int, f.readline().split()))
             if read_line [0] == key and i < (K-1):
@@ -40,7 +40,7 @@ def ILP(filename):
         else:
             dct[i[0]-1].append(i[1]-1)
 
-    solver = pywraplp.Solver.CreateSolver('SCIP')
+    solver = pywraplp.Solver.CreateSolver('CBC')
     INF = solver.infinity()
     large = max(sum(d) + max(d)+max(starts), n + 1)
     # X = m*n
@@ -53,7 +53,7 @@ def ILP(filename):
 
     for i in range(n):
         # Sua lai dieu kien
-        solver.Add(sum([X[j][i] for j in range(m)]) == 1)
+        solver.Add(sum([X[j][i] for j in range(m)]) <= 1)
 
     for i in range(n):
         not_in = set(list(range(m))) - set(worker_list[i])
@@ -82,20 +82,21 @@ def ILP(filename):
                     solver.Add((1 - X[i][j])*large + (1 - X[i][k])*large + times[k] + (1-t)*large >= times[j] + d[j])
             solver.Add((1-X[i][j])*large + times[j] >= starts[i])
 
-    costs = [solver.IntVar(0, INF, 'cost[{}]'.format(i)) for i in range(m)]
+    costs = solver.IntVar(0, INF, 'cost')
+    sum_ = 0
     for i in range(m):
-        sum_ = 0
         for j in range(n):
             sum_ += X[i][j] * c[j][i]
-        solver.Add(costs[i] == sum_)
+    solver.Add(costs == sum_)
     number_task = solver.IntVar(0, n-1, 'n_t')
-    solver.Add(number_task <= n-1)
+    task = 0
+    for i in range(m):
+        for  j in range(n):
+            task += X[i][j]
+    solver.Add(number_task == task)
     Z = solver.IntVar(0, INF, 'z')
-    max_cost = solver.IntVar(0, INF, 'maxcost')
     for i in range(n):
         solver.Add(Z >= times[i] + d[i])
-    for i in range(m):
-        solver.Add(max_cost >= costs[i])
     solver.Maximize(number_task)
     status = solver.Solve()
     if status == pywraplp.Solver.OPTIMAL:
@@ -104,13 +105,13 @@ def ILP(filename):
         status = solver.Solve()
         if status == pywraplp.Solver.OPTIMAL:
             solver.Add(Z == Z.solution_value())
-            solver.Minimize(max_cost)
+            solver.Minimize(costs)
             status = solver.Solve()
             if status == 0:
                 
                 print('Optimal result: ')
                 print('   Maximum task:', number_task.solution_value()+1)
-                print('   Minimum cost:', max_cost.solution_value())
+                print('   Minimum cost:', costs.solution_value())
                 print('   Minimum time:', Z.solution_value())
                 for i in range(n):
                     print('Time for part {}:'.format(i+1), times[i].solution_value())
