@@ -4,7 +4,7 @@ from ortools.linear_solver import pywraplp
 def input(filename):
     with open(filename, 'r') as f:
         n, q = map(int, f.readline().split())
-        worker_list =[]
+        worker_list =[[] for _ in range(n)]
         d = []
         pres = []
         for i in range(q):
@@ -17,17 +17,13 @@ def input(filename):
         dat = []
         cost_list = [[999 for _ in range(m)] for _ in range(n)]
         for i in range(K):
-            read_line = list(map(int, f.readline().split()))
-            if read_line [0] == key and i < (K-1):
-                dat.append(read_line[1]-1)
-            elif (key != read_line[0]) or (i == (K-1)):
-                if key == read_line[0]:
-                    dat.append(read_line[1]-1)
-                worker_list.append(dat)
-                dat =[]
-                key += 1
-                dat.append(read_line[1]-1)
-            cost_list[read_line[0]-1][read_line[1]-1] = read_line[2] 
+            lines = f.readlines()
+            for line in lines:
+                parts = line.split()
+                if len(parts) == 3:
+                    i, j, value = map(int, parts)
+                    worker_list[i - 1].append(j-1)
+                    cost_list[(i-1)][(j-1)] = value
     return n, m, worker_list, d, K, cost_list, starts, pres
 
 #Integer programming model
@@ -40,7 +36,7 @@ def ILP(filename):
         else:
             dct[i[0]-1].append(i[1]-1)
 
-    solver = pywraplp.Solver.CreateSolver('CBC')
+    solver = pywraplp.Solver.CreateSolver('SCIP')
     INF = solver.infinity()
     large = max(sum(d) + max(d)+max(starts), n + 1)
     # X = m*n
@@ -67,7 +63,7 @@ def ILP(filename):
             solver.Add(large * (-X[i][j]+1) + i >= assign[j])
             solver.Add(-large * (-X[i][j]+1) + i <= assign[j])
 
-    times = [solver.IntVar(0, sum(d), 'times[{}]'.format(i)) for i in range(n)]
+    times = [solver.IntVar(0, large, 'times[{}]'.format(i)) for i in range(n)]
 
     for first in dct:
         for second in dct[first]:
@@ -115,10 +111,12 @@ def ILP(filename):
                 print('   Minimum cost:', costs.solution_value())
 
                 for i in range(n):
-                    print('Time for part {}:'.format(i+1), times[i].solution_value())
+                    if X[int(assign[i].solution_value())][i].solution_value() ==1:
+                        print('Time for part {}:'.format(i+1), times[i].solution_value())
 
                 for i in range(n):
-                    print('The worker group of part {}:'.format(i+1), assign[i].solution_value()+1)
+                    if X[int(assign[i].solution_value())][i].solution_value() ==1:
+                        print('The worker group of part {}:'.format(i+1), assign[i].solution_value()+1)
             else:
                 if status == 2:
                     print('INFEASIBLE')
@@ -132,5 +130,4 @@ def ILP(filename):
             elif status == 3:
                 print('Unbound')
             else:
-                print('ERROR')   
-print(1)
+                print('ERROR')  
