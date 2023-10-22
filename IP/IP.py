@@ -88,7 +88,7 @@ def ILP(filename):
         for j in range(n):
             sum_ += X[i][j] * c[j][i]
     solver.Add(costs == sum_)
-    number_task = solver.IntVar(0, n-1, 'n_t')
+    number_task = solver.IntVar(1, n, 'n_t')
     task = 0
     for i in range(m):
         for  j in range(n):
@@ -110,9 +110,10 @@ def ILP(filename):
             if status == 0:
                 
                 print('Optimal result: ')
-                print('   Maximum task:', number_task.solution_value()+1)
-                print('   Minimum cost:', costs.solution_value())
+                print('   Maximum task:', number_task.solution_value())
                 print('   Minimum time:', Z.solution_value())
+                print('   Minimum cost:', costs.solution_value())
+
                 for i in range(n):
                     print('Time for part {}:'.format(i+1), times[i].solution_value())
 
