@@ -103,7 +103,7 @@ def CP():
             model.Minimize(costs)
             status  = solver.Solve(model)
             if status == 4:
-                print(solver.Value(number_task))
+                # print('      maximum number task', solver.Value(number_task))
                 # print('      Minimum time:', solver.Value(Z))
                 # print('      Minimum cost:', solver.Value(costs))
                 # for i in range(n):
