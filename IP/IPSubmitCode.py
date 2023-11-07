@@ -1,34 +1,29 @@
 from ortools.linear_solver import pywraplp
 
 #read input from file
-def input(filename):
-    with open(filename, 'r') as f:
-        n, q = map(int, f.readline().split())
-        worker_list =[[] for _ in range(n)]
-        d = []
-        pres = []
-        for i in range(q):
-            pres.append(tuple(map(int, f.readline().split())))
-        d = list(map(int, f.readline().split()))
-        m = int(f.readline())
-        starts = list(map(int, f.readline().split()))
-        K = int(f.readline())
-        key = 1
-        dat = []
-        cost_list = [[999 for _ in range(m)] for _ in range(n)]
-        for i in range(K):
-            lines = f.readlines()
-            for line in lines:
-                parts = line.split()
-                if len(parts) == 3:
-                    i, j, value = map(int, parts)
-                    worker_list[i - 1].append(j-1)
-                    cost_list[(i-1)][(j-1)] = value
-    return n, m, worker_list, d, K, cost_list, starts, pres
-
 #Integer programming model
-def ILP(filename):
-    n, m, worker_list, d, K, c, starts, pres = input(filename)
+def ILP():
+    n, q = map(int, input().split())
+    worker_list =[[] for _ in range(n)]
+    d = []
+    pres = []
+    starts = []
+    for i in range(q):
+        pres.append(tuple(map(int, input().split())))
+    d = list(map(int, input().split()))
+    m = int(input())
+    starts = list(map(int, input().split()))
+    K = int(input())
+    key = 1
+    dat = []
+    cost_list = [[999 for _ in range(m)] for _ in range(n)]
+    for i in range(K):
+        line = input()
+        parts = line.split()
+        if len(parts) == 3:
+            i, j, value = map(int, parts)
+            worker_list[i - 1].append(j-1)
+            cost_list[(i-1)][(j-1)] = value
     dct = {}
     for i in pres:
         if i[0]-1 not in dct:
@@ -82,7 +77,7 @@ def ILP(filename):
     sum_ = 0
     for i in range(m):
         for j in range(n):
-            sum_ += X[i][j] * c[j][i]
+            sum_ += X[i][j] * cost_list[j][i]
     solver.Add(costs == sum_)
     number_task = solver.IntVar(1, n, 'n_t')
     task = 0
@@ -104,19 +99,13 @@ def ILP(filename):
             solver.Minimize(costs) 
             status = solver.Solve()
             if status == 0:
-                
-                print('Optimal result: ')
-                print('   Maximum task:', number_task.solution_value())
-                print('   Minimum time:', Z.solution_value())
-                print('   Minimum cost:', costs.solution_value())
-
+                print(int(number_task.solution_value()))
+                # for i in range(n):
+                #     if X[int(assign[i].solution_value())][i].solution_value() ==1:
+                #         print('Time for part {}:'.format(i+1), times[i].solution_value())
                 for i in range(n):
                     if X[int(assign[i].solution_value())][i].solution_value() ==1:
-                        print('Time for part {}:'.format(i+1), times[i].solution_value())
-
-                for i in range(n):
-                    if X[int(assign[i].solution_value())][i].solution_value() ==1:
-                        print('The worker group of part {}:'.format(i+1), assign[i].solution_value()+1)
+                        print(i+1, int(assign[i].solution_value()+1), int(times[i].solution_value()))
             else:
                 if status == 2:
                     print('INFEASIBLE')
@@ -131,3 +120,5 @@ def ILP(filename):
                 print('Unbound')
             else:
                 print('ERROR')  
+if __name__ == '__main__':
+    ILP()
