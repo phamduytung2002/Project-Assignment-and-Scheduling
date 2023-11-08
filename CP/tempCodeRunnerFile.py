@@ -1,32 +1,27 @@
 from ortools.sat.python import cp_model
-import math
-def input(filename):
-    with open(filename, 'r') as f:
-        n, q = map(int, f.readline().split())
-        worker_list =[[] for _ in range(n)]
-        d = []
-        pres = []
-        for i in range(q):
-            pres.append(tuple(map(int, f.readline().split())))
-        d = list(map(int, f.readline().split()))
-        m = int(f.readline())
-        starts = list(map(int, f.readline().split()))
-        K = int(f.readline())
-        key = 1
-        dat = []
-        cost_list = [[999 for _ in range(m)] for _ in range(n)]
-        for i in range(K):
-            lines = f.readlines()
-            for line in lines:
-                parts = line.split()
-                if len(parts) == 3:
-                    i, j, value = map(int, parts)
-                    worker_list[i - 1].append(j-1)
-                    cost_list[(i-1)][(j-1)] = value
-    return n, m, worker_list, d, K, cost_list, starts, pres
 
-def CP(filename):
-    n, m, worker_list, d, K, c, starts, pres = input(filename)
+def CP():
+    n, q = map(int, input().split())
+    worker_list =[[] for _ in range(n)]
+    d = []
+    pres = []
+    starts = []
+    for i in range(q):
+        pres.append(tuple(map(int, input().split())))
+    d = list(map(int, input().split()))
+    m = int(input())
+    starts = list(map(int, input().split()))
+    K = int(input())
+    key = 1
+    dat = []
+    cost_list = [[999 for _ in range(m)] for _ in range(n)]
+    for i in range(K):
+        line = input()
+        parts = line.split()
+        if len(parts) == 3:
+            i, j, value = map(int, parts)
+            worker_list[i - 1].append(j-1)
+            cost_list[(i-1)][(j-1)] = value
     dct = {}
     for i in pres:
         if i[0]-1 not in dct:
@@ -37,7 +32,7 @@ def CP(filename):
     model = cp_model.CpModel()
 
     summ = 0
-    for i in c:
+    for i in cost_list:
         summ += sum(i)
     summ += sum(starts) 
     summ += sum(d)
@@ -80,7 +75,7 @@ def CP(filename):
     sum_ = 0
     for i in range(m):
         for j in range(n):
-            sum_ += X[i][j] * c[j][i]
+            sum_ += X[i][j] * cost_list[j][i]
     model.Add(costs == sum_)
     
     number_task = model.NewIntVar(0, n, 'n_t')
@@ -108,15 +103,15 @@ def CP(filename):
             model.Minimize(costs)
             status  = solver.Solve(model)
             if status == 4:
-                print('Optimal result: ')
-                print('      maximum number task', solver.Value(number_task))
-                print('      Minimum time:', solver.Value(Z))
-                print('      Minimum cost:', solver.Value(costs))
-                for i in range(n):
-                    print('Starting time for part {}:'.format(i+1), solver.Value(times[i]))
+                # print('      maximum number task', solver.Value(number_task))
+                # print('      Minimum time:', solver.Value(Z))
+                # print('      Minimum cost:', solver.Value(costs))
+                # for i in range(n):
+                #     print('Starting time for part {}:'.format(i+1), solver.Value(times[i]))
 
                 for i in range(n):
-                    print('The worker group do part {} is '.format(i+1), solver.Value(assign[i])+1)
+                    # if X[int(solver.Value(assign[i]))][i] == 1:
+                    print(i+1, solver.Value(assign[i])+1, solver.Value(times[i]))
             else:
                 if status == 3:
                     print('INFEASIBLE')
@@ -139,3 +134,5 @@ def CP(filename):
                     print('UNKNOWN')
                 else:
                     print('ERROR')
+if __name__ == '__main__':
+    CP()
