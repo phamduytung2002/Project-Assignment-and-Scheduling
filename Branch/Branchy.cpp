@@ -106,7 +106,7 @@ void branch_and_bound() {
     while (!pq.empty()) {
         State state = pq.top();
         pq.pop();
-        if (state.scheduled.size() == N) {
+        if (state.scheduled.size() == T) {
             min_cost = state.cost;
             best_state = state;
             continue;
