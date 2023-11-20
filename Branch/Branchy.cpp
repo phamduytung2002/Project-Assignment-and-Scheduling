@@ -28,7 +28,7 @@ struct State {
 
     bool operator<(const State& other) const {
         if (scheduled.size() != other.scheduled.size()) {
-            return scheduled.size() < other.scheduled.size();
+            return scheduled.size() > other.scheduled.size();
         }
         if (earliest_completion_time != other.earliest_completion_time) {
             return earliest_completion_time < other.earliest_completion_time;
@@ -94,7 +94,6 @@ void branch_and_bound() {
     while (!pq.empty()) {
         State state = pq.top();
         pq.pop();
-        if (state.cost >= min_cost) continue;
         if (state.scheduled.size() == N) {
             min_cost = state.cost;
             best_state = state;
@@ -125,12 +124,12 @@ void branch_and_bound() {
                         }
                         child.start_times.push_back(start_time);
                         child.team_availability[j] = start_time + d[i];
-                        child.time = min(child.time, start_time + d[i]);
+                        child.time = max(child.time, start_time + d[i]);
                         child.scheduled.push_back(i);
                         child.assigned.push_back(j);
                         child.cost += c[i][j];
                         child.earliest_completion_time = compute_earliest_completion_time(child);
-                        if (child.cost + child.earliest_completion_time >= min_cost) continue;
+                        if (child.cost >= min_cost) continue;
                         pq.push(child);
                     }
                 }
