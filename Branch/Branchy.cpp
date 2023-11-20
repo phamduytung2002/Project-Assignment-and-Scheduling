@@ -11,7 +11,7 @@ const int MAXN = 1000;
 const int MAXM = 500;
 const int MAXK = 1000000;
 
-int N, Q, M, K;
+int N, Q, M, K, T;
 vector<int> d(MAXN+1), s(MAXM+1);
 vector<vector<int>> adj(MAXN+1), c(MAXN+1, vector<int>(MAXM+1));
 vector<int> team_availability(MAXM+1, 0);
@@ -60,14 +60,26 @@ bool isCyclicUtil(int i, vector<int>& tasksToRemove) {
 
 void removeCyclicTasks() {
     vector<int> tasksToRemove;
-    for (int i = 1; i <= N; i++)
-        if (isCyclicUtil(i, tasksToRemove))
-            for (int task : tasksToRemove)
-                adj[task].clear();  // Remove all dependencies of the task
+    for (int i = 1; i <= N; i++) {
+        if (isCyclicUtil(i, tasksToRemove)) {
+            for (int task : tasksToRemove) {
+                // Thay đổi cách đánh dấu công việc bằng cách đặt d[task] = -1
+                d[task] = -1;
+                for (int j = 1; j <= M; j++) {
+                    // Thay đổi cách đánh dấu chi phí bằng cách đặt c[task][j] = -1
+                    c[task][j] = -1;
+                }
+            }
+        }
+    }
 
-    // Remove tasks from the list of tasks
-    for (int task : tasksToRemove)
-        d[task] = -1;  // Mark the task as removed
+    // Xóa các công việc đã được đánh dấu loại bỏ khỏi danh sách phụ thuộc
+    for (int i = 1; i <= N; i++) {
+        if (d[i] == -1) {
+            T=T-1;
+            adj[i].clear();
+        }
+    }
 }
 
 int compute_earliest_completion_time(const State& state) {
@@ -149,6 +161,7 @@ void branch_and_bound() {
 
 int main() {
     cin >> N >> Q;
+    T = N;
     for (int i = 1; i <= Q; i++) {
         int a, b;
         cin >> a >> b;
