@@ -40,6 +40,16 @@ struct State {
 vector<int> visited(MAXN+1, 0);
 vector<int> recStack(MAXN+1, 0);
 
+void removeDependentTasks(int i) {
+    if (d[i] == -1) return;
+    else {
+        d[i] = -1;
+    }
+    for (int j : adj[i]) {
+            removeDependentTasks(j);
+    }
+}
+
 bool isCyclicUtil(int i, vector<int>& tasksToRemove) {
     if (!visited[i]) {
         visited[i] = 1;
@@ -58,18 +68,17 @@ bool isCyclicUtil(int i, vector<int>& tasksToRemove) {
     return false;
 }
 
+
 void removeCyclicTasks() {
     vector<int> tasksToRemove;
     for (int i = 1; i <= N; i++) {
-        if (isCyclicUtil(i, tasksToRemove)) {
-            for (int task : tasksToRemove) {
-                // Thay đổi cách đánh dấu công việc bằng cách đặt d[task] = -1
-                d[task] = -1;
-                for (int j = 1; j <= M; j++) {
-                    // Thay đổi cách đánh dấu chi phí bằng cách đặt c[task][j] = -1
-                    c[task][j] = -1;
+        if (!visited[i]) {
+            if (isCyclicUtil(i, tasksToRemove)) {
+                for (int task : tasksToRemove) {
+                    removeDependentTasks(task);
                 }
             }
+            tasksToRemove.clear();
         }
     }
 
@@ -77,10 +86,16 @@ void removeCyclicTasks() {
     for (int i = 1; i <= N; i++) {
         if (d[i] == -1) {
             T=T-1;
+            // Đặt c[task][j] = -1 để đánh dấu chi phí
+            for (int j = 1; j <= M; j++) {
+                c[i][j] = -1;
+            }
             adj[i].clear();
         }
     }
 }
+
+
 
 int compute_earliest_completion_time(const State& state) {
     vector<int> earliest_start_time(N+1, 0);
@@ -150,7 +165,9 @@ void branch_and_bound() {
     }
     vector<tuple<int, int, int>> output;
     for (int i = 0; i < N; i++) {
-        output.push_back(make_tuple(best_state.scheduled[i], best_state.assigned[i], best_state.start_times[i]));
+        if (best_state.scheduled[i] != 0 || best_state.assigned[i] != 0 || best_state.start_times[i] != 0) {
+            output.push_back(make_tuple(best_state.scheduled[i], best_state.assigned[i], best_state.start_times[i]));
+        }
     }
     sort(output.begin(), output.end());
     cout << output.size() << endl;
