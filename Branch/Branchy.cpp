@@ -45,8 +45,11 @@ void removeDependentTasks(int i) {
     else {
         d[i] = -1;
     }
-    for (int j : adj[i]) {
-            removeDependentTasks(j);
+    for (int k = 1; k <= N; k++) {
+        for (int j : adj[k]) {
+            if (j == i)
+                removeDependentTasks(k);
+        }
     }
 }
 
@@ -86,7 +89,6 @@ void removeCyclicTasks() {
     for (int i = 1; i <= N; i++) {
         if (d[i] == -1) {
             T=T-1;
-            // Đặt c[task][j] = -1 để đánh dấu chi phí
             for (int j = 1; j <= M; j++) {
                 c[i][j] = -1;
             }
@@ -164,8 +166,8 @@ void branch_and_bound() {
         }
     }
     vector<tuple<int, int, int>> output;
-    for (int i = 0; i < N; i++) {
-        if (best_state.scheduled[i] != 0 || best_state.assigned[i] != 0 || best_state.start_times[i] != 0) {
+    for (int i = 0; i < best_state.scheduled.size(); i++) {
+        if (best_state.scheduled[i] != 0 && best_state.assigned[i] != 0) {
             output.push_back(make_tuple(best_state.scheduled[i], best_state.assigned[i], best_state.start_times[i]));
         }
     }
