@@ -3,7 +3,8 @@
 using namespace std;
 
 const int VERY_BIG_NUMBER = 1e7;
-const int PENALTY_PER_FAULT = 1e3;
+const int PENALTY_PER_FAULT = 1e4;
+const int TIME_WEIGHT = 1e2;
 const double MAXTIME = 290; // seconds
 const int MAXITER = 1000;
 const int maxn = 1005;
@@ -12,24 +13,25 @@ const int maxq = 1755;
 const int MAX_PATIENT = 2000;
 
 bool must_before[maxn * maxn];
+int cost[maxn * maxm];
 
 class Problem {
   public:
     Problem() {}
 
     // given
-    int N;                  // number of tasks
-    int M;                  // number of teams
-    int s[maxm];            // team j start at s[j]
-    int K;                  // number of (team, task) pairs
-    map<int, int> c[maxn];  // team j do i cost c[i][j]
+    int N;       // number of tasks
+    int M;       // number of teams
+    int s[maxm]; // team j start at s[j]
+    int K;       // number of (team, task) pairs
+    // map<int, int> c[maxn];  // team j do i cost c[i][j]
     int d[maxm];            // task i has duration d[i]
     int Q;                  // number of precedence constraints
     pair<int, int> p[maxq]; // task [i].first must be done before p[i].second
 
     // addition
-    vector<int>
-        can_do_by_team[maxm]; // team j can do tasks in can_do_by_team[j]
+    // vector<int>
+    //     can_do_by_team[maxm]; // team j can do tasks in can_do_by_team[j]
     vector<int> succ[maxn]; // task i must be done before every tasks in succ[i]
     // bool must_before[maxnm * maxnm]; // must_before[i][j] = true if task i
     // must
@@ -38,12 +40,18 @@ class Problem {
     vector<int>
         tasks_toposorted; // an order of tasks can be done by a single team
 
+    int get_cost(int task, int team) { return cost[task * (M + 1) + team]; }
+
+    void set_cost(int task, int team, int val) {
+        cost[task * (M + 1) + team] = val;
+    }
+
     bool get_must_before(int row, int col) {
-        return must_before[row * maxn + col];
+        return must_before[row * (N + 1) + col];
     }
 
     void set_must_before(int row, int col, bool val) {
-        must_before[row * maxn + col] = val;
+        must_before[row * (N + 1) + col] = val;
     }
 
     void input() {
@@ -62,11 +70,12 @@ class Problem {
             cin >> s[i];
         cin >> K;
 
+        memset(cost, 0, sizeof(cost));
         for (int i = 1; i <= K; ++i) {
             int u, v, w;
             cin >> u >> v >> w;
-            c[u][v] = w;
-            can_do_by_team[v].push_back(u);
+            set_cost(u, v, w);
+            // can_do_by_team[v].push_back(u);
         }
     }
 } prob;
@@ -119,7 +128,7 @@ class Solution {
                 continue;
             bool x = false;
             for (int j = 1; j <= prob.M; ++j) {
-                if (prob.c[i][j] != 0) {
+                if (prob.get_cost(i, j) != 0) {
                     x = true;
                     break;
                 }
@@ -302,7 +311,7 @@ class Solution {
             // check if if team i can do every task in done_by_team[i]
             for (int j = 0; j < tasks_of_team[i].size(); ++i) {
                 int u = tasks_of_team[i][j];
-                if (prob.c[u][i] == 0) {
+                if (prob.get_cost(u, i) == 0) {
                     return false;
                 }
             }
@@ -318,6 +327,10 @@ class Solution {
         cost = 0;
         for (int i = 1; i <= prob.N; ++i) {
             cost = max(cost, start_time[i] + prob.d[i]);
+        }
+        cost *= TIME_WEIGHT;
+        for (int i = 1; i <= prob.N; ++i) {
+            cost += prob.get_cost(i, team_do[i]);
         }
     }
 
@@ -342,7 +355,7 @@ class Solution {
             // check if if team i can do every task in done_by_team[i]
             for (int j = 0; j < tasks_of_team[i].size(); ++i) {
                 int u = tasks_of_team[i][j];
-                if (prob.c[u][i] == 0) {
+                if (prob.get_cost(u, i) == 0) {
                     ++this->n_violate_of_team[i];
                 }
             }
@@ -362,7 +375,8 @@ class Solution {
     void print_answer() {
         cout << R << endl;
         for (int i = 1; i <= prob.N; ++i) {
-            cout << i << " " << team_do[i] << " " << start_time[i] << endl;
+            if (cando[i])
+                cout << i << " " << team_do[i] << " " << start_time[i] << endl;
         }
     }
 };
@@ -384,7 +398,7 @@ class InterSwapOperator : public NeighborOperator {
         for (int i = 0; i < sol.tasks_of_team[team].size(); ++i) {
             int n_violate = 0;
             int u = sol.tasks_of_team[team][i];
-            if (prob.c[i][team] == 0)
+            if (prob.get_cost(i, team) == 0)
                 n_violate++;
             for (int j = 0; j < sol.tasks_of_team[team].size(); ++j) {
                 int v = sol.tasks_of_team[team][j];
@@ -500,7 +514,7 @@ class InterSwapOperator : public NeighborOperator {
         vector<int> first_teams_cando;
         int first_finish_time = VERY_BIG_NUMBER;
         for (int i = 1; i <= prob.M; ++i) {
-            if (prob.c[task][i] == 0)
+            if (prob.get_cost(task, i) == 0)
                 continue;
             else if (finish_time[i] < first_finish_time) {
                 first_teams_cando.clear();
@@ -535,7 +549,7 @@ class IntraSwapOperator : public NeighborOperator {
         for (int i = 0; i < sol.tasks_of_team[team].size(); ++i) {
             int n_violate = 0;
             int u = sol.tasks_of_team[team][i];
-            if (prob.c[i][team] == 0)
+            if (prob.get_cost(i, team) == 0)
                 n_violate++;
             for (int j = 0; j < sol.tasks_of_team[team].size(); ++j) {
                 int v = sol.tasks_of_team[team][j];
