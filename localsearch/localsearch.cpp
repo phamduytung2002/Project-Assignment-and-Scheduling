@@ -1,15 +1,15 @@
-// #define NDEBUG
+#define NDEBUG
 #include <bits/stdc++.h>
 using namespace std;
 
 const int VERY_BIG_NUMBER = 1e7;
 const int PENALTY_PER_FAULT = 1e3;
-const double MAXTIME = 100; // second
+const double MAXTIME = 290; // seconds
 const int MAXITER = 1000;
 const int maxn = 1005;
 const int maxm = 505;
 const int maxq = 1755;
-const int MAX_PATIENT = 20;
+const int MAX_PATIENT = 2000;
 
 bool must_before[maxn * maxn];
 
@@ -22,7 +22,7 @@ class Problem {
     int M;                  // number of teams
     int s[maxm];            // team j start at s[j]
     int K;                  // number of (team, task) pairs
-    map<int, int> c[maxm];  // team j do i cost c[i][j]
+    map<int, int> c[maxn];  // team j do i cost c[i][j]
     int d[maxm];            // task i has duration d[i]
     int Q;                  // number of precedence constraints
     pair<int, int> p[maxq]; // task [i].first must be done before p[i].second
@@ -115,6 +115,19 @@ class Solution {
                 dfs(1, visited, rec);
         }
         for (int i = 1; i <= prob.N; ++i) {
+            if (!cando[i])
+                continue;
+            bool x = false;
+            for (int j = 1; j <= prob.M; ++j) {
+                if (prob.c[i][j] != 0) {
+                    x = true;
+                    break;
+                }
+            }
+            if (!x)
+                cando[i] = false;
+        }
+        for (int i = 1; i <= prob.N; ++i) {
             R += cando[i];
         }
     }
@@ -179,9 +192,10 @@ class Solution {
     int task_id_in_toposort_list[maxn]; // task_id_in_toposort_list[i] =
                                         // position of task i in
                                         // tasks_toposorted
-    int id_done_by_team[maxn]; // id_done_by_team[i] = order of task i done by
-                               // the team
-    int team_do[maxn];         // team_do[i] = team do task i
+    int id_done_by_team[maxn];   // id_done_by_team[i] = order of task i done by
+                                 // the team
+    int team_do[maxn];           // team_do[i] = team do task i
+    int n_violate_of_team[maxm]; // number of violation of each team
 
     Solution(Problem prob) {
         this->cost = VERY_BIG_NUMBER;
@@ -313,6 +327,7 @@ class Solution {
         // i, v done by j, if u must done before v then start_time[u] + d[u] <=
         // start_time[v])
         int n_fault = 0;
+        memset(n_violate_of_team, 0, sizeof(n_violate_of_team));
         for (int i = 1; i <= prob.M; ++i) {
             // check all pairs of tasks done by team i
             for (int j = 0; j < tasks_of_team[i].size(); ++j) {
@@ -320,7 +335,7 @@ class Solution {
                 for (int k = j + 1; k < tasks_of_team[i].size(); ++k) {
                     int v = tasks_of_team[i][k];
                     if (prob.get_must_before(u, v)) {
-                        ++n_fault;
+                        ++this->n_violate_of_team[i];
                     }
                 }
             }
@@ -328,11 +343,13 @@ class Solution {
             for (int j = 0; j < tasks_of_team[i].size(); ++i) {
                 int u = tasks_of_team[i][j];
                 if (prob.c[u][i] == 0) {
-                    ++n_fault;
+                    ++this->n_violate_of_team[i];
                 }
             }
         }
-        penalty = n_fault * PENALTY_PER_FAULT;
+        for (int i = 1; i <= prob.M; ++i)
+            n_fault += n_violate_of_team[i];
+        this->penalty = n_fault * PENALTY_PER_FAULT;
     }
 
     void print_debug() {
@@ -386,6 +403,8 @@ class InterSwapOperator : public NeighborOperator {
     }
 
     int least_violate_insert_position(Solution &sol, int task, int team) {
+        if (sol.tasks_of_team[team].size() == 0)
+            return 0;
         int n_violate_at_0 = 0; // n_violate if insert at position 0
         for (int i = 0; i < sol.tasks_of_team[team].size(); ++i) {
             int u = sol.tasks_of_team[team][i];
@@ -413,13 +432,16 @@ class InterSwapOperator : public NeighborOperator {
         return least_violate_pos[rand() % (least_violate_pos.size())];
     }
 
-    Solution update_sol(Solution sol, int from_team, int to_team) {
+    Solution update_sol(Solution &sol) {
         Solution newsol = sol;
+        int from_team =
+            sol.penalty == 0 ? last_finish_team(sol) : most_violate_team(sol);
         int which_to_take = most_violate(sol, from_team);
         int task_to_take = newsol.tasks_of_team[from_team][which_to_take];
+        int to_team = first_finish_team_cando(sol, task_to_take);
         int where_to_insert =
             least_violate_insert_position(sol, task_to_take, to_team);
-        // int where_to_insert = 0;
+
         newsol.tasks_of_team[from_team].erase(
             newsol.tasks_of_team[from_team].begin() + which_to_take);
         newsol.tasks_of_team[to_team].insert(
@@ -428,34 +450,78 @@ class InterSwapOperator : public NeighborOperator {
         return newsol;
     }
 
+    int most_violate_team(Solution &sol) {
+        vector<int> most_violate_teams;
+        int largest_violate = 0;
+        for (int i = 1; i <= prob.M; ++i) {
+            if (sol.n_violate_of_team[i] > largest_violate) {
+                most_violate_teams.clear();
+                most_violate_teams.push_back(i);
+                largest_violate = sol.n_violate_of_team[i];
+            } else if (sol.n_violate_of_team[i] == largest_violate) {
+                most_violate_teams.push_back(i);
+            }
+        }
+        return most_violate_teams[rand() % (most_violate_teams.size())];
+    }
+
+    int last_finish_team(Solution &sol) {
+        pair<int, int> finish_time[prob.M + 1];
+        memset(finish_time, 0, sizeof(finish_time));
+        for (int i = 1; i <= prob.M; ++i)
+            finish_time[i].second = i;
+        for (int i = 1; i <= prob.N; ++i) {
+            if (!sol.cando[i])
+                continue;
+            int teamdo = sol.team_do[i];
+            finish_time[teamdo].first =
+                max(finish_time[teamdo].first, sol.start_time[i] + prob.d[i]);
+        }
+        sort(finish_time + 1, finish_time + prob.M + 1,
+             greater<pair<int, int>>());
+
+        int fifth = finish_time[4].first;
+        int n_team_before_fifth = 0;
+        for (int i = 0; i < prob.M; ++i) {
+            if (finish_time[i].first >= fifth && finish_time[i].first > 0)
+                n_team_before_fifth++;
+        }
+        return finish_time[rand() % n_team_before_fifth + 1].second;
+    }
+
+    int first_finish_team_cando(Solution &sol, int task) {
+        int finish_time[maxm];
+        memset(finish_time, 0, sizeof(finish_time));
+        for (int i = 1; i <= prob.N; ++i) {
+            int teamdo = sol.team_do[i];
+            finish_time[teamdo] =
+                max(finish_time[teamdo], sol.start_time[i] + prob.d[i]);
+        }
+        vector<int> first_teams_cando;
+        int first_finish_time = VERY_BIG_NUMBER;
+        for (int i = 1; i <= prob.M; ++i) {
+            if (prob.c[task][i] == 0)
+                continue;
+            else if (finish_time[i] < first_finish_time) {
+                first_teams_cando.clear();
+                first_teams_cando.push_back(i);
+                first_finish_time = finish_time[i];
+            } else if (finish_time[i] == first_finish_time) {
+                first_teams_cando.push_back(i);
+            }
+        }
+        return first_teams_cando[rand() % (first_teams_cando.size())];
+    }
+
     virtual void update_cost(Solution &sol) { sol.recalculate_cost(); }
 
     virtual void update_penalty(Solution &sol) { sol.recalculate_penalty(); }
 
     virtual Solution find_best_neighbor(Solution sol) {
-        cout << "inter\n";
-        int best_cost_penalty = VERY_BIG_NUMBER;
-        vector<Solution> best_sols;
-        for (int i = 1; i <= prob.M; ++i) {
-            if (sol.tasks_of_team[i].size() == 0)
-                continue;
-            for (int j = 1; j <= prob.M; ++j) {
-                if (j == i)
-                    continue;
-                Solution newsol = update_sol(sol, i, j);
-                update_cost(newsol);
-                update_penalty(newsol);
-                int cost_penalty = newsol.cost + newsol.penalty;
-                if (cost_penalty < best_cost_penalty) {
-                    best_cost_penalty = cost_penalty;
-                    best_sols.clear();
-                    best_sols.push_back(newsol);
-                } else if (cost_penalty == best_cost_penalty) {
-                    best_sols.push_back(newsol);
-                }
-            }
-        }
-        return best_sols[rand() % (best_sols.size())];
+        Solution newsol = update_sol(sol);
+        update_cost(newsol);
+        update_penalty(newsol);
+        return newsol;
     }
 };
 
@@ -488,6 +554,8 @@ class IntraSwapOperator : public NeighborOperator {
     }
 
     int least_violate_insert_position(Solution &sol, int task, int team) {
+        if (sol.tasks_of_team[team].size() == 0)
+            return 0;
         int n_violate_at_0 = 0; // n_violate if insert at position 0
         for (int i = 0; i < sol.tasks_of_team[team].size(); ++i) {
             int u = sol.tasks_of_team[team][i];
@@ -515,7 +583,6 @@ class IntraSwapOperator : public NeighborOperator {
         return least_violate_pos[rand() % (least_violate_pos.size())];
     }
 
-
     Solution update_sol(Solution sol, int team, int id_to_move,
                         int id_to_come) {
         Solution newsol = sol;
@@ -532,29 +599,20 @@ class IntraSwapOperator : public NeighborOperator {
     virtual void update_penalty(Solution &sol) { sol.recalculate_penalty(); }
 
     virtual Solution find_best_neighbor(Solution sol) {
-        cout << "intra\n";
-        for (int team = 1; team <= prob.M; ++team) {
-            int best_cost_penalty = VERY_BIG_NUMBER;
-            vector<Solution> best_sols;
-            best_sols.push_back(sol);
-            for (int i = 0; i < sol.tasks_of_team[team].size(); ++i) {
-                for (int j = 0; j < sol.tasks_of_team[team].size(); ++j) {
-                    if (j == i)
-                        continue;
-                    Solution newsol = update_sol(sol, team, i, j);
-                    update_cost(newsol);
-                    update_penalty(newsol);
-                    int cost_penalty = newsol.cost + newsol.penalty;
-                    if (cost_penalty < best_cost_penalty) {
-                        best_cost_penalty = cost_penalty;
-                        best_sols.clear();
-                        best_sols.push_back(newsol);
-                    } else if (cost_penalty == best_cost_penalty) {
-                        best_sols.push_back(newsol);
-                    }
-                }
-            }
-            sol = best_sols[rand() % (best_sols.size())];
+        // cout << "intra\n";
+        for (int i = 1; i <= prob.M; ++i) {
+            if (sol.tasks_of_team[i].size() <= 1)
+                continue;
+            int id_to_move = most_violate(sol, i);
+            int task_to_move = sol.tasks_of_team[i][id_to_move];
+            int id_to_come =
+                least_violate_insert_position(sol, task_to_move, i);
+            id_to_come =
+                (id_to_come > id_to_move) ? id_to_come - 1 : id_to_come;
+            Solution newsol = update_sol(sol, i, id_to_move, id_to_come);
+            update_cost(sol);
+            update_penalty(sol);
+            sol = newsol;
         }
         return sol;
     }
@@ -582,11 +640,13 @@ class LocalSearch {
         Solution best_sol = sol;
         time_t start_time = time(nullptr);
         while (time(nullptr) - start_time < MAXTIME) {
+#ifndef NDEBUG
+            cout << "time consumed: " << time(nullptr) - start_time << endl;
+#endif
             double r = ((double)rand() / (RAND_MAX));
             int id = upper_bound(cmf.begin(), cmf.end(), r) - cmf.begin();
             Solution neighbor = neighborOperators[id]->find_best_neighbor(sol);
             sol = neighbor;
-            // sol.print_answer();
             sol.print_debug();
             if (sol.cost + sol.penalty <= best_sol.cost + best_sol.penalty) {
                 best_sol = sol;
@@ -613,8 +673,13 @@ int main() {
     InterSwapOperator interSwapOperator;
     IntraSwapOperator intraSwapOperator;
     LocalSearch localsearch;
-    localsearch.addNeighborOperator(interSwapOperator, 0.8);
-    localsearch.addNeighborOperator(intraSwapOperator, 0.2);
+    localsearch.addNeighborOperator(interSwapOperator, 0.9);
+    localsearch.addNeighborOperator(intraSwapOperator, 0.1);
+
+    sol = interSwapOperator.find_best_neighbor(sol);
+    // sol.print_answer();
+    // sol.print_debug();
+
     sol = localsearch.search_with_time(sol);
     sol.print_answer();
     sol.print_debug();
