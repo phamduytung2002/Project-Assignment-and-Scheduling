@@ -5,7 +5,7 @@ using namespace std;
 const int VERY_BIG_NUMBER = 1e7;
 const int PENALTY_PER_FAULT = 1e4;
 const int TIME_WEIGHT = 1e2;
-const double MAXTIME = 290; // seconds
+const double MAXTIME = 30; // seconds
 const int MAXITER = 1000;
 const int maxn = 1005;
 const int maxm = 505;
@@ -119,10 +119,7 @@ class Solution {
         memset(visited, 0, sizeof(visited));
         bool rec[prob.N + 1];
         memset(rec, 0, sizeof(rec));
-        for (int i = 1; i <= prob.N; ++i) {
-            if (!visited[i])
-                dfs(1, visited, rec);
-        }
+
         for (int i = 1; i <= prob.N; ++i) {
             if (!cando[i])
                 continue;
@@ -133,9 +130,17 @@ class Solution {
                     break;
                 }
             }
-            if (!x)
+            if (!x) {
                 cando[i] = false;
+                check_all_descendant_cantdo(i);
+            }
         }
+
+        for (int i = 1; i <= prob.N; ++i) {
+            if (!visited[i])
+                dfs(1, visited, rec);
+        }
+
         for (int i = 1; i <= prob.N; ++i) {
             R += cando[i];
         }
