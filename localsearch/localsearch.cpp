@@ -1,19 +1,20 @@
-#define NDEBUG
+// #define NDEBUG
 #include <bits/stdc++.h>
 using namespace std;
 
 const int VERY_BIG_NUMBER = 1e7;
 const int PENALTY_PER_FAULT = 1e4;
-const int TIME_WEIGHT = 1e2;
-const double MAXTIME = 30; // seconds
+const int TIME_WEIGHT = 1e3;
+const double MAXTIME = 300; // seconds
 const int MAXITER = 1000;
 const int maxn = 1005;
 const int maxm = 505;
 const int maxq = 1755;
-const int MAX_PATIENT = 2000;
+const int MAX_PATIENT = 2000000;
 
 bool must_before[maxn * maxn];
 int cost[maxn * maxm];
+set<int> task_can_do;
 
 class Problem {
   public:
@@ -40,10 +41,10 @@ class Problem {
     vector<int>
         tasks_toposorted; // an order of tasks can be done by a single team
 
-    int get_cost(int task, int team) { return cost[task * (M + 1) + team]; }
+    int get_cost(int task, int team) { return cost[task * (maxm) + team]; }
 
     void set_cost(int task, int team, int val) {
-        cost[task * (M + 1) + team] = val;
+        cost[task * (maxm) + team] = val;
     }
 
     bool get_must_before(int row, int col) {
@@ -75,6 +76,7 @@ class Problem {
             int u, v, w;
             cin >> u >> v >> w;
             set_cost(u, v, w);
+            task_can_do.insert(u);
             // can_do_by_team[v].push_back(u);
         }
     }
@@ -82,6 +84,7 @@ class Problem {
 
 class Solution {
   private:
+    bool dfs_visited[maxn], rec[maxn];
     void check_all_descendant_cantdo(int u) {
         for (int i = 0; i < prob.succ[u].size(); ++i) {
             int v = prob.succ[u][i];
@@ -92,15 +95,15 @@ class Solution {
         }
     }
 
-    void dfs(int u, bool visited[], bool rec[]) {
+    void dfs(int u) {
         // cando[u] = false;
         for (int i = 0; i < prob.succ[u].size(); ++i) {
             int v = prob.succ[u][i];
             if (cando[v]) {
-                if (!visited[v]) {
-                    visited[v] = true;
+                if (!dfs_visited[v]) {
+                    dfs_visited[v] = true;
                     rec[v] = true;
-                    dfs(v, visited, rec);
+                    dfs(v);
                     rec[v] = false;
                 } else if (rec[v]) {
                     cando[v] = false;
@@ -113,32 +116,24 @@ class Solution {
     void update_cando() {
         // cando[i] = false if task i is included in a cycle
         // after this we can ignore every task i that cando[i] = false
+        R = 0;
         for (int i = 1; i <= prob.N; ++i)
-            cando[i] = true;
+            cando[i] = false;
         bool visited[prob.N + 1];
         memset(visited, 0, sizeof(visited));
         bool rec[prob.N + 1];
         memset(rec, 0, sizeof(rec));
 
         for (int i = 1; i <= prob.N; ++i) {
-            if (!cando[i])
-                continue;
-            bool x = false;
-            for (int j = 1; j <= prob.M; ++j) {
-                if (prob.get_cost(i, j) != 0) {
-                    x = true;
-                    break;
-                }
-            }
-            if (!x) {
-                cando[i] = false;
-                check_all_descendant_cantdo(i);
-            }
+            if (task_can_do.find(i) == task_can_do.end());
+                // check_all_descendant_cantdo(i);
+            else
+                cando[i] = true;
         }
 
         for (int i = 1; i <= prob.N; ++i) {
             if (!visited[i])
-                dfs(1, visited, rec);
+                dfs(i);
         }
 
         for (int i = 1; i <= prob.N; ++i) {
@@ -210,6 +205,7 @@ class Solution {
                                  // the team
     int team_do[maxn];           // team_do[i] = team do task i
     int n_violate_of_team[maxm]; // number of violation of each team
+    int time_cost;
 
     Solution(Problem prob) {
         this->cost = VERY_BIG_NUMBER;
@@ -333,6 +329,7 @@ class Solution {
         for (int i = 1; i <= prob.N; ++i) {
             cost = max(cost, start_time[i] + prob.d[i]);
         }
+        time_cost = cost;
         cost *= TIME_WEIGHT;
         for (int i = 1; i <= prob.N; ++i) {
             cost += prob.get_cost(i, team_do[i]);
@@ -374,6 +371,7 @@ class Solution {
 #ifndef NDEBUG
         cout << "cost: " << cost << endl;
         cout << "penalty: " << penalty << endl;
+        cout << "time cost: " << time_cost << endl;
 #endif
     }
 
@@ -667,7 +665,15 @@ class LocalSearch {
             Solution neighbor = neighborOperators[id]->find_best_neighbor(sol);
             sol = neighbor;
             sol.print_debug();
-            if (sol.cost + sol.penalty <= best_sol.cost + best_sol.penalty) {
+            if (best_sol.penalty == 0) {
+                if (sol.penalty > 0)
+                    continue;
+                else if (sol.cost < best_sol.cost) {
+                    best_sol = sol;
+                    patient = 0;
+                }
+            } else if (sol.cost + sol.penalty <=
+                       best_sol.cost + best_sol.penalty) {
                 best_sol = sol;
                 patient = 0;
             } else {
@@ -696,9 +702,6 @@ int main() {
     localsearch.addNeighborOperator(intraSwapOperator, 0.1);
 
     sol = interSwapOperator.find_best_neighbor(sol);
-    // sol.print_answer();
-    // sol.print_debug();
-
     sol = localsearch.search_with_time(sol);
     sol.print_answer();
     sol.print_debug();
